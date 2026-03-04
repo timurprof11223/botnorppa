@@ -1,2 +1,1 @@
-bot.ру
-requirements.txt
+aiogram==3.*
