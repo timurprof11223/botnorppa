@@ -1,0 +1,259 @@
+import asyncio
+import logging
+
+from aiogram import Bot, Dispatcher, F
+from aiogram.filters import Command
+from aiogram.types import (
+    Message, CallbackQuery,
+    ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+)
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+
+
+# =========================
+# НАСТРОЙКИ
+# =========================
+TOKEN = "8595564001:AAFiqzCTUbqiFkx9ZpWpsqsZrGGP5bFM3nw"
+
+INTRO_PHOTO_ID = "AgACAgIAAxkBAAMTaab0v5vXvBp7L9vuPCCFk4UhtvYAAsYXaxsOrTlJ1RlyPui2l8sBAAMCAAN3AAM6BA"
+
+QUESTION_PHOTOS = [
+    "AgACAgIAAxkBAAMxaacN_mYgP_LtMJ4sbCdp_5YxymMAAuQYaxsOrTlJdjf--Dc3LeQBAAMCAAN5AAM6BA",  # Q1
+    "AgACAgIAAxkBAAMzaacP-0OLhMv07U3hJE2yKMU0B-oAAvMYaxsOrTlJzO79wzMew5UBAAMCAAN5AAM6BA",  # Q2
+    "AgACAgIAAxkBAAM1aacQAAELth3tarhN1pZj5IxuqVpqAAL0GGsbDq05SbSOKPUFwLrIAQADAgADeQADOgQ",  # Q3
+    "AgACAgIAAxkBAAM3aacQBoFWsN8URXKy_bWyg2wi2JQAAvUYaxsOrTlJBFfo7jHzS30BAAMCAAN4AAM6BA",  # Q4
+    "AgACAgIAAxkBAAM5aacQDI9Fq8-cGLZKUlSWujYqf5wAAvYYaxsOrTlJUt-00QtUXKMBAAMCAAN5AAM6BA",  # Q5
+]
+
+INTRO_TEXT = (
+    "В преддверии 8 марта мы создали тест для самых очаровательных искательниц приключений. "
+    "Ответьте на несколько вопросов и получите персональную рекомендацию и секретный промокод "
+    "на скидку 15% на модели из новой коллекции!"
+)
+
+QUESTIONS = [
+    (
+        "1) Представьте, что вы стоите на краю горного плато. Какое время суток вам ближе всего?\n\n"
+        "А) Раннее утро: туман рассеивается, воздух свежий, первые лучи солнца.\n"
+        "Б) Золотой полдень: яркое солнце, тени короткие, всё вокруг наполнено светом.\n"
+        "В) Сумеречный вечер: закат окрашивает вершины, становится прохладно, время для уютных посиделок.\n"
+        "Г) Звездная ночь: небо усыпано бриллиантами, тишина и безмятежность."
+    ),
+    (
+        "2) Природа Алтая – это:\n\n"
+        "А) Бескрайние просторы: где чувствуешь себя частью чего-то огромного.\n"
+        "Б) Величественные вершины: к которым хочется стремиться, преодолевая трудности.\n"
+        "В) Чистые реки и водопады: энергия и освежение.\n"
+        "Г) Тайга и древние леса: таинственность и загадка."
+    ),
+    (
+        "3) Ваше идеальное приключение на Алтае – это:\n\n"
+        "А) Многодневный поход: с палатками, кострами и ночевками под звездами.\n"
+        "Б) Поездка на внедорожнике: по живописным дорогам, с остановками в самых красивых местах.\n"
+        "В) Исследование пещер и водопадов: погружение в неизведанное.\n"
+        "Г) Спокойный отдых у озера: с прогулками и любованием пейзажами."
+    ),
+    (
+        "4) Что для вас важнее всего в одежде для путешествий?\n\n"
+        "А) Максимальная защита от ветра и влаги: я готов(а) к любым капризам погоды.\n"
+        "Б) Удобство и свобода движений: чтобы ничто не стесняло в пути.\n"
+        "В) Тепло и уют: чтобы чувствовать себя как дома, даже вдали от цивилизации.\n"
+        "Г) Стильный внешний вид: чтобы выглядеть хорошо на фоне потрясающих пейзажей."
+    ),
+    (
+        "5) Ваш любимый \"алтайский\" цвет?\n\n"
+        "А) Глубокий синий/фиолетовый: как летнее ночное небо.\n"
+        "Б) Хвойный зеленый: напоминает о вечной тайге.\n"
+        "В) Каменный серый/бежевый: оттенки гор и скал.\n"
+        "Г) Ярко-оранжевый/красный: как закатное солнце. 🌅"
+    ),
+]
+
+RESULT_PHOTOS = {
+    "A": "AgACAgIAAxkBAAM7aacQEJmH_XnQFU6k3dMN7UKsOiEAAvcYaxsOrTlJURloCEt2-lQBAAMCAAN5AAM6BA",
+    "B": "AgACAgIAAxkBAAM9aacQGfbHD6YKCIYSKxeryb-ZCqEAAvgYaxsOrTlJ-WsZBFbOxIUBAAMCAAN5AAM6BA",
+    "V": "AgACAgIAAxkBAAM_aacQM8P_1r3GO7HpsjNvDs3bE8MAAvwYaxsOrTlJKUxs-udaf-ABAAMCAAN3AAM6BA",
+    "G": "AgACAgIAAxkBAANBaacQWWb_ScJhLZWO1H1ENsfW1L4AAgsZaxsOrTlJFyukf6YkliUBAAMCAAN3AAM6BA",
+}
+
+RESULT_TEXTS = {
+    "A": (
+        "«Путешественник»\n"
+        "Вы – прирожденный искатель приключений! Вам нужна надежная защита от стихии, "
+        "чтобы ничто не помешало вашим планам воплотиться в реальность.\n\n"
+        "Рекомендация от NORPPA: Вам идеально подойдет наша мембранная куртка ISHA – "
+        "она непромокаемая, ветрозащитная и очень удобная."
+    ),
+    "B": (
+        "«Исследователь»\n"
+        "Для вас главное – свобода и комфорт, ведь вы всегда в движении, открывая новое. "
+        "Ваша одежда должна быть функциональной и не сковывать движений.\n\n"
+        "Рекомендация от NORPPA: Обратите внимание на нашу легкую куртку BIYA из мембранной ткани. "
+        "Она отлично сохраняет тепло, но при этом отводит влагу от тела, а эргономичный крой подарит "
+        "вам максимальную свободу."
+    ),
+    "V": (
+        "«Уютный странник»\n"
+        "Вы цените тепло и комфорт, даже когда вокруг дикая природа. Ваша одежда – это ваш личный "
+        "островок уюта, который согреет в любую погоду.\n\n"
+        "Рекомендация от NORPPA: Посмотрите на нашу куртку AKRAU с мягкой подкладкой из нежнейшего "
+        "искусственного меха. Она невероятно приятная, легкая и стильная – идеальный компаньон для "
+        "вечерних посиделок у костра или прогулок по осеннему лесу."
+    ),
+    "G": (
+        "«Эстетичный покоритель»\n"
+        "Даже в самых диких местах вы стремитесь к гармонии и красоте. Ваша верхняя одежда должна быть "
+        "не только функциональной, но и подчеркивать ваш уникальный стиль.\n\n"
+        "Рекомендация от NORPPA: Вас, несомненно, заинтересует наша утепленная куртка-рубашка MULTA. "
+        "Она сочетает в себе минималистичный дизайн, качественные материалы и продуманную функциональность, "
+        "позволяя создавать разные образы для городских прогулок и выездов на природу."
+    ),
+}
+
+PROMO_CODE = "NORPPA15"
+PROMO_TEXT = f"Ваш секретный промокод на скидку 15%: {PROMO_CODE}\n\nПриятных приключений! 🧡"
+
+USER_STATE: dict[int, dict] = {}
+
+
+# =========================
+# КНОПКИ
+# =========================
+def main_keyboard_start():
+    return ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="Начать тест")]],
+        resize_keyboard=True
+    )
+
+
+def main_keyboard_restart():
+    return ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="Пройти ещё раз")]],
+        resize_keyboard=True
+    )
+
+
+def answers_keyboard():
+    kb = InlineKeyboardBuilder()
+    kb.button(text="А", callback_data="ans:A")
+    kb.button(text="Б", callback_data="ans:B")
+    kb.button(text="В", callback_data="ans:V")
+    kb.button(text="Г", callback_data="ans:G")
+    kb.adjust(4)
+    return kb.as_markup()
+
+
+def promo_keyboard():
+    kb = InlineKeyboardBuilder()
+    kb.button(text="Забрать промокод", callback_data="get_promo")
+    kb.adjust(1)
+    return kb.as_markup()
+
+
+def get_winner(counts: dict) -> str:
+    order = ["A", "B", "V", "G"]
+    best = order[0]
+    for k in order[1:]:
+        if counts[k] > counts[best]:
+            best = k
+    return best
+
+
+# =========================
+# ОТПРАВКА (фото отдельно)
+# =========================
+async def safe_photo(message: Message, file_id: str, tag: str):
+    try:
+        await message.answer_photo(photo=file_id)
+    except Exception as e:
+        logging.exception("Не смог отправить фото %s: %s", tag, e)
+        await message.answer(f"⚠️ Не смог отправить фото ({tag}). Ошибка:\n{e}")
+
+
+async def show_intro(message: Message):
+    USER_STATE.pop(message.from_user.id, None)
+    await safe_photo(message, INTRO_PHOTO_ID, "INTRO")
+    await message.answer(INTRO_TEXT, reply_markup=main_keyboard_start())
+
+
+async def start_quiz_for_user(message: Message):
+    USER_STATE[message.from_user.id] = {"q": 0, "counts": {"A": 0, "B": 0, "V": 0, "G": 0}}
+    # убираем большую кнопку во время теста
+    await message.answer("Поехали! 🚀", reply_markup=ReplyKeyboardRemove())
+    await send_question(message, 0)
+
+
+async def send_question(message: Message, q_index: int):
+    await safe_photo(message, QUESTION_PHOTOS[q_index], f"Q{q_index+1}")
+    await message.answer(QUESTIONS[q_index], reply_markup=answers_keyboard())
+
+
+async def send_result(message: Message, winner: str):
+    await safe_photo(message, RESULT_PHOTOS[winner], f"RESULT-{winner}")
+    await message.answer(RESULT_TEXTS[winner], reply_markup=promo_keyboard())
+
+
+# =========================
+# MAIN
+# =========================
+async def main():
+    logging.basicConfig(level=logging.INFO)
+
+    bot = Bot(TOKEN)
+    dp = Dispatcher()
+
+    # /start -> показать интро и кнопку "Начать тест"
+    @dp.message(Command("start"))
+    async def cmd_start(message: Message):
+        await show_intro(message)
+
+    # Нажатие большой кнопки "Начать тест" -> старт теста
+    @dp.message(F.text == "Начать тест")
+    async def start_from_button(message: Message):
+        await start_quiz_for_user(message)
+
+    # Нажатие большой кнопки "Пройти ещё раз" -> новый тест (сразу, без интро)
+    @dp.message(F.text == "Пройти ещё раз")
+    async def restart_from_button(message: Message):
+        await start_quiz_for_user(message)
+
+    # ответы
+    @dp.callback_query(F.data.startswith("ans:"))
+    async def answer(call: CallbackQuery):
+        user_id = call.from_user.id
+        if user_id not in USER_STATE:
+            await call.answer("Нажмите «Начать тест»", show_alert=True)
+            return
+
+        letter = call.data.split(":")[1]  # A/B/V/G
+        st = USER_STATE[user_id]
+        st["counts"][letter] += 1
+        st["q"] += 1
+        q_index = st["q"]
+
+        await call.answer()
+
+        # убрать кнопки у сообщения с вопросом
+        try:
+            await call.message.edit_reply_markup(reply_markup=None)
+        except Exception:
+            pass
+
+        if q_index < len(QUESTIONS):
+            await send_question(call.message, q_index)
+        else:
+            winner = get_winner(st["counts"])
+            await send_result(call.message, winner)
+
+    # промокод
+    @dp.callback_query(F.data == "get_promo")
+    async def give_promo(call: CallbackQuery):
+        await call.answer()
+        await call.message.answer(PROMO_TEXT, reply_markup=main_keyboard_restart())
+        USER_STATE.pop(call.from_user.id, None)
+
+    await dp.start_polling(bot)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

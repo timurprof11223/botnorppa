@@ -1,0 +1,2 @@
+bot.ру
+requirements.txt
