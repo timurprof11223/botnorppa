@@ -14,9 +14,9 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
 # ====== НАСТРОЙКИ ИЗ ENV (Railway Variables) ======
-TOKEN = os.getenv("8595564001:AAFiqzCTUbqiFkx9ZpWpsqsZrGGP5bFM3nw", "").strip()
-SHOP_URL = os.getenv("https://www.norppa.ru/?ysclid=mmbv3anzd9143894395", "").strip()  # например: https://norpra.ru
-ADMIN_IDS_RAW = os.getenv("486586871", "").strip()  # например: 123456789 или 123,456
+TOKEN = os.getenv("BOT_TOKEN", "").strip()
+SHOP_URL = os.getenv("SHOP_URL", "").strip()  # например: https://norpra.ru
+ADMIN_IDS_RAW = os.getenv("ADMIN_IDS", "").strip()  # например: 123456789 или 123,456
 
 def parse_admin_ids(raw: str) -> List[int]:
     if not raw:
@@ -344,3 +344,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
