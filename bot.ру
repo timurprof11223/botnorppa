@@ -128,7 +128,7 @@ RESULT_TEXT = {
     ),
 }
 
-PROMO_CODE = "NORPPA15"
+PROMO_CODE = "8МАРТА"
 PROMO_TEXT = f"Ваш секретный промокод на скидку 15%: {PROMO_CODE}\n\nПриятных приключений! 🧡"
 
 USER_STATE: Dict[int, Dict] = {}
@@ -344,4 +344,5 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
